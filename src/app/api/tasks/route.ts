@@ -34,7 +34,7 @@ export async function GET() {
   await connect();
 
   try {
-    const tasks = await Task.find(); // Получение всех задач
+    const tasks = await Task.find().populate('category'); // Получение всех задач
     return NextResponse.json(tasks, { status: 200 });
   } catch (err) {
     console.error("Error fetching tasks:", err);
