@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { DndContext, useDroppable, useDraggable, DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
 type Category = {
   _id: string;
@@ -25,6 +27,19 @@ const KanbanBoard = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [categories, setCategories] = useState<{ _id: string; name: string }[]>([]);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const openTaskModal = (task: Task) => {
+    setSelectedTask(task);
+    setIsModalOpen(true);
+  };
+  
+  const closeTaskModal = () => {
+    setSelectedTask(null);
+    setIsModalOpen(false);
+  };
+    
+
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -36,10 +51,9 @@ const KanbanBoard = () => {
         setError('Error fetching categories. Please try again.');
       }
     };
-  
+
     fetchCategories();
   }, []);
-  
 
   // Fetch tasks from the server
   useEffect(() => {
@@ -92,7 +106,29 @@ const KanbanBoard = () => {
       setLoading(false);
     }
   };
+
+  // Handle drag and drop
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    const draggedTaskId = active.id;
+    const targetStatus = over.id as 'to-do' | 'in-progress' | 'done';
+
+    const updatedTasks = tasks.map((task) =>
+      task._id === draggedTaskId ? { ...task, status: targetStatus } : task
+    );
+    setTasks(updatedTasks);
   
+    axios
+    .put('/api/tasks', { id: draggedTaskId, status: targetStatus })  // Передаем id и status в теле запроса
+    .then((response) => {
+      console.log('Task updated successfully', response.data);
+    })
+    .catch((error) => {
+      console.error('Failed to update task status:', error);
+    });
+  };
 
   return (
     <div className="container mx-auto p-6">
@@ -101,123 +137,103 @@ const KanbanBoard = () => {
       {/* Error handling */}
       {error && <div className="text-red-500 mb-4">{error}</div>}
 
-{/* Task Form */}
-<div className="mb-6">
-  <h2 className="text-xl font-semibold mb-2">Add New Task</h2>
-  <input
-    type="text"
-    placeholder="Task title"
-    className="border rounded-md p-2 w-full mb-2 text-black"
-    value={newTask.title}
-    onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-  />
+      {/* Task Form */}
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold mb-2">Add New Task</h2>
+        <input
+          type="text"
+          placeholder="Task title"
+          className="border rounded-md p-2 w-full mb-2 text-black"
+          value={newTask.title}
+          onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+        />
 
-<select
-    className="border rounded-md p-2 w-full mb-2 text-black"
-    value={newTask.category}
-    onChange={(e) => setNewTask({ ...newTask, category: e.target.value })}
-  >
-    <option value="">Select a category</option>
-    {categories.map((category) => (
-      <option key={category._id} value={category._id}>
-        {category.name}
-      </option>
-    ))}
-  </select>
+        <select
+          className="border rounded-md p-2 w-full mb-2 text-black"
+          value={newTask.category}
+          onChange={(e) => setNewTask({ ...newTask, category: e.target.value })}
+        >
+          <option value="">Select a category</option>
+          {categories.map((category) => (
+            <option key={category._id} value={category._id}>
+              {category.name}
+            </option>
+          ))}
+        </select>
 
-  <select
-    className="border rounded-md p-2 w-full mb-2 text-black"
-    value={newTask.status}
-    onChange={(e) => setNewTask({ ...newTask, status: e.target.value })}
-  >
-    <option value="to-do">To-Do</option>
-    <option value="in-progress">In Progress</option>
-    <option value="done">Done</option>
-  </select>
-  <button
-    onClick={handleCreateTask}
-    className="bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600"
-    disabled={loading}
-  >
-    {loading ? 'Adding...' : 'Add Task'}
-  </button>
-        
-    
+        <select
+          className="border rounded-md p-2 w-full mb-2 text-black"
+          value={newTask.status}
+          onChange={(e) => setNewTask({ ...newTask, status: e.target.value })}
+        >
+          <option value="to-do">To-Do</option>
+          <option value="in-progress">In Progress</option>
+          <option value="done">Done</option>
+        </select>
+        <button
+          onClick={handleCreateTask}
+          className="bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600"
+          disabled={loading}
+        >
+          {loading ? 'Adding...' : 'Add Task'}
+        </button>
       </div>
 
       {/* Kanban Board */}
       {loading ? (
         <div className="text-center">Loading tasks...</div>
       ) : (
-        <div className="flex gap-4">
-
-          {/* Column: To-Do */}
-          <div className="flex-1 bg-gray-100 p-4 rounded-md">
-            <h2 className="text-lg font-semibold mb-4 text-black">To-Do</h2>
-            {tasks
-              .filter((task) => task.status === 'to-do')
-              .map((task) => (
-                <div
-                  key={task._id}
-                  className="bg-white p-3 rounded-md mb-4 shadow-md"
-                >
-                  <h3 className="font-bold text-black">{task.title}</h3>
-                  <p className="text-sm text-gray-600">{task.category?.name}</p>
-                  <button
-                    onClick={() => handleDeleteTask(task._id)}
-                    className="mt-2 text-sm text-red-500"
-                  >
-                    Delete
-                  </button>
-                </div>
-              ))}
+        <DndContext onDragEnd={handleDragEnd}>
+          <div className="flex gap-4 text-black">
+            {['to-do', 'in-progress', 'done'].map((status) => (
+              <Column key={status} status={status} tasks={tasks.filter((task) => task.status === status)} />
+            ))}
           </div>
-
-          {/* Column: In Progress */}
-          <div className="flex-1 bg-gray-100 p-4 rounded-md">
-            <h2 className="text-lg font-semibold mb-4 text-black">In Progress</h2>
-            {tasks
-              .filter((task) => task.status === 'in-progress')
-              .map((task) => (
-                <div
-                  key={task._id}
-                  className="bg-white p-3 rounded-md mb-4 shadow-md"
-                >
-                  <h3 className="font-bold text-black">{task.title}</h3>
-                  <p className="text-sm text-gray-600">{task.category?.name}</p>
-                  <button
-                    onClick={() => handleDeleteTask(task._id)}
-                    className="mt-2 text-sm text-red-500"
-                  >
-                    Delete
-                  </button>
-                </div>
-              ))}
-          </div>
-
-          {/* Column: Done */}
-          <div className="flex-1 bg-gray-100 p-4 rounded-md">
-            <h2 className="text-lg font-semibold mb-4 text-black">Done</h2>
-            {tasks
-              .filter((task) => task.status === 'done')
-              .map((task) => (
-                <div
-                  key={task._id}
-                  className="bg-white p-3 rounded-md mb-4 shadow-md text-black"
-                >
-                  <h3 className="font-bold">{task.title}</h3>
-                  <p className="text-sm text-gray-600">{task.category?.name}</p>
-                  <button
-                    onClick={() => handleDeleteTask(task._id)}
-                    className="mt-2 text-sm text-red-500"
-                  >
-                    Delete
-                  </button>
-                </div>
-              ))}
-          </div>
-        </div>
+        </DndContext>
       )}
+    </div>
+  );
+};
+
+const Column = ({ status, tasks }: { status: string; tasks: Task[] }) => {
+  const { setNodeRef } = useDroppable({ id: status });
+
+  return (
+    <div ref={setNodeRef} className="flex-1 bg-gray-100 p-4 rounded-md">
+      <h2 className="text-lg font-semibold mb-4">{status.toUpperCase()}</h2>
+      <SortableContext items={tasks.map((task) => task._id)} strategy={verticalListSortingStrategy}>
+        {tasks.map((task) => (
+          <TaskCard key={task._id} task={task} />
+        ))}
+      </SortableContext>
+    </div>
+  );
+};
+
+const TaskCard = ({ task }: { task: Task }) => {
+  const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: task._id });
+  const style = {
+    transform: `translate(${transform?.x || 0}px, ${transform?.y || 0}px)`,
+    
+  };
+
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="bg-white p-3 rounded-md shadow-md mb-4"
+    >
+      <h3 className="font-bold text-black">{task.title}</h3>
+      <p className="text-sm text-gray-600">{task.category?.name}</p>
+      <button
+        onClick={() => alert(`Delete task ${task._id}`)}
+        className="mt-2 text-sm text-red-500"
+      >
+        Delete
+      </button>
     </div>
   );
 };

@@ -1,31 +1,33 @@
 import { NextResponse } from 'next/server';
 import connect from '../../../lib/mongodb';
 import Task from '../../../models/task';
+import { NextApiRequest } from 'next';
+import { NextApiResponse } from 'next';
 
 export async function DELETE(req: Request) {
   await connect();
 
+  const url = new URL(req.url);
+  const taskId = url.searchParams.get('id'); // Извлечение параметра id из строки запроса
+
+  if (!taskId) {
+    return NextResponse.json({ error: 'Task ID is required' }, { status: 400 });
+  }
+
   try {
-    const { searchParams } = new URL(req.url!);
-    const id = searchParams.get('id');
-
-    if (!id) {
-      return NextResponse.json({ error: "Task ID is required" }, { status: 400 });
-    }
-
-    const deletedTask = await Task.findByIdAndDelete(id);
+    const deletedTask = await Task.findByIdAndDelete(taskId);
 
     if (!deletedTask) {
-      return NextResponse.json({ error: "Task not found" }, { status: 404 });
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ message: "Task deleted successfully" }, { status: 200 });
-  } catch (err: unknown) {
-    console.error("Error deleting task:", err);
-    if (err instanceof Error) {
-      return NextResponse.json({ error: err.message }, { status: 500 });
-    }
-    return NextResponse.json({ error: "Unknown error occurred" }, { status: 500 });
+    return NextResponse.json({ message: 'Task deleted successfully' }, { status: 200 });
+  } catch (err) {
+    console.error('Error deleting task:', err);
+    return NextResponse.json(
+      { error: 'Error deleting task', details: (err as Error).message },
+      { status: 500 }
+    );
   }
 }
 
@@ -82,6 +84,35 @@ export async function POST(req: Request) {
     }
     return NextResponse.json(
       { error: "Unknown error occurred" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(req: Request) {
+  await connect();
+
+  try {
+    const { id, status } = await req.json(); // Получаем id и status из тела запроса
+
+    if (!id || !status) {
+      return NextResponse.json(
+        { error: "Task ID and new status are required." },
+        { status: 400 }
+      );
+    }
+
+    const updatedTask = await Task.findByIdAndUpdate(id, { status }, { new: true });
+
+    if (!updatedTask) {
+      return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    }
+
+    return NextResponse.json(updatedTask, { status: 200 });
+  } catch (err: unknown) {
+    console.error("Error updating task:", err);
+    return NextResponse.json(
+      { error: "Error updating task" },
       { status: 500 }
     );
   }
