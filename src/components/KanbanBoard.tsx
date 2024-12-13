@@ -5,7 +5,8 @@ import axios from 'axios';
 import { DndContext, DragEndEvent } from '@dnd-kit/core';
 import Column from './Column';
 import TaskForm from './TaskForm';
-import Modal from './Modal';
+
+
 
 type Category = {
     _id: string;
@@ -25,18 +26,9 @@ const KanbanBoard = () => {
   const [categories, setCategories] = useState<{ _id: string; name: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
 
-  const openModal = (task: Task) => {
-    setSelectedTask(task);
-    setIsModalOpen(true);
-  };
+ 
 
-  const closeModal = () => {
-    setSelectedTask(null);
-    setIsModalOpen(false);
-  };
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -106,9 +98,11 @@ const KanbanBoard = () => {
       .catch((error) => console.error('Failed to update task status:', error));
   };
 
+
+
   return (
     <div className="container mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-6">Task Manager</h1>
+      <h1 className="text-2xl font-bold mb-6" >Task Manager</h1>
 
       {error && <div className="text-red-500 mb-4">{error}</div>}
 
@@ -125,21 +119,15 @@ const KanbanBoard = () => {
                 status={status}
                 tasks={tasks.filter((task) => task.status === status)}
                 onDeleteTask={handleDeleteTask}
+                
               />
             ))}
           </div>
         </DndContext>
       )}
 
-      {/* Modal */}
-      {isModalOpen && selectedTask && (
-        <Modal onClose={closeModal}>
-          <h2 className="text-xl font-bold">{selectedTask.title}</h2>
-          <p className="text-gray-600">{selectedTask.description || 'No description available'}</p>
-          <p className="text-sm text-gray-500 mt-2">Category: {selectedTask.category.name}</p>
-          <p className="text-sm text-gray-500 mt-2">Status: {selectedTask.status}</p>
-        </Modal>
-      )}
+        
+      
     </div>
   );
 };

@@ -9,7 +9,7 @@ type Task = {
   status: 'to-do' | 'in-progress' | 'done';
 };
 
-const Column = ({ status, tasks, onDeleteTask }: { status: string; tasks: Task[]; onDeleteTask: (taskId: string) => void }) => {
+const Column = ({ status, tasks, onDeleteTask,  }: { status: string; tasks: Task[]; onDeleteTask: (taskId: string) => void;  }) => {
   const { setNodeRef } = useDroppable({ id: status });
 
   return (
